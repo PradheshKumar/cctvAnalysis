@@ -18,33 +18,49 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
 });
 
 exports.signup = catchAsync(async (req, res, next) => {
-  try {
-    const newPassword = await bcrypt.hash(req.body.password, 10);
-    const newUser = await User.create({
-      name: req.body.name,
-      email: req.body.email,
-      password: newPassword,
-      role: req.body.role,
+  const { name, email, password, role, camera_id } = req.body;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  let newUser;
+  if (role === "admin") {
+    console.log(req.body);
+    newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      camera_id: null,
     });
-    res.status(201).json({
-      status: "success",
-      data: {
-        user: newUser.name,
-      },
-    });
-  } catch (err) {
-    res.status(400).json({
-      status: "fail",
-      message: err.message,
+  } else if (role === "user") {
+    if (!camera_id) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Camera ID is required for user role",
+      });
+    }
+    newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      camera_id,
     });
   }
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      user: newUser.name,
+    },
+  });
 });
 
 exports.getIncidents = catchAsync(async (req, res, next) => {
-  const user = await User.findOne({
+  const user = await User.findById({
     email: req.body.email,
   });
-  const incidents = await Incident.find({ cameraNo: user.camera_id });
+  const incidents = await Incident.find({ camera_id: user.camera_id });
   res.status(200).json({
     status: "success",
     data: {
